@@ -1,0 +1,70 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /auth/$\{segment}
+
+        - id: product-service
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/products/**
+          filters:
+            - AuthenticationFilter
+            - RewritePath=/api/products/(?<segment>.*), /products/$\{segment}
+
+        - id: basket-service
+          uri: lb://BASKET-SERVICE
+          predicates:
+            - Path=/api/basket/**
+          filters:
+            - AuthenticationFilter
+            - RewritePath=/api/basket/(?<segment>.*), /basket/$\{segment}
+
+        - id: order-service
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - AuthenticationFilter
+            - RewritePath=/api/orders/(?<segment>.*), /orders/$\{segment}
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: "http://localhost:3000"
+            allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+            allowed-headers: "*"
+            allow-credentials: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+jwt:
+  secret: q12w3e4r5t6y7u8i9o0azsxdcfvgbhnjmkaqwsedrftgyhujik1234567890poiuytrewq123456789oiuytrewq
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
