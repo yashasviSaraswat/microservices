@@ -5,7 +5,11 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:8085',
+      '/api': {
+        target: 'http://localhost:8080',  // Changed from 8085 to 8080
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   plugins: [react()],

@@ -19,11 +19,11 @@ import {Product} from "../../app/model/Product.ts";
 import {Brand} from "../../app/model/Brand.ts";
 import {Type} from "../../app/model/Type.ts";
 
-
 const sortOptions = [
     {value: "asc", label: "Ascending"},
     {value: "desc", label: "Descending"}
 ]
+
 export default function Catalog() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
@@ -38,69 +38,82 @@ export default function Catalog() {
     const [totalItems, setTotalItems] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 10;
+    const [error, setError] = useState<string | null>(null);
 
-    // useEffect(()=>{
-    //   agent.Store.list()
-    //   .then((products)=>setProducts(products.content))
-    //   .catch(error=>console.log(error))
-    //   .finally(()=>setLoading(false));
-    // }, []);
     useEffect(() => {
-        Promise.all([
-            agent.Store.list(currentPage, pageSize),
-            agent.Store.brands(),
-            agent.Store.types()
-        ]).then(([productsRes, brandsResp, typesResp]) => {
-            setProducts(productsRes.content);
-            setTotalItems(productsRes.totalElements);
-            setBrands(brandsResp);
-            setTypes(typesResp);
-        })
-            .catch((error) => console.error(error))
-            .finally(() => setLoading(false));
-    }, [currentPage, pageSize]);
+        loadInitialData();
+    }, []);
 
-    const loadProducts = (selectedSort: string, searchKeyword = '') => {
-        setLoading(true);
-        const page = currentPage - 1;
-        const size = pageSize;
-        const brandId = selectedBrandId !== 0 ? selectedBrandId : undefined;
-        const typeId = selectedTypeId !== 0 ? selectedTypeId : undefined;
-        const sort = "name";
-        const order = selectedSort === "desc" ? "desc" : "asc";
-        //construct the url
-        let url = `${agent.Store.apiUrl}?sort=${sort}&order=${order}`;
-        if (brandId !== undefined || typeId !== undefined) {
-            url += '&';
-            if (brandId !== undefined) url += `brandId=${brandId}&`;
-            if (typeId !== undefined) url += `typeId=${typeId}&`;
-            //Remove trailing &
-            url = url.replace(/&$/, "");
-        }
-        //Make the API request with the url
-        if (searchKeyword) {
-            console.log(searchKeyword);
-            agent.Store.search(searchKeyword)
-                .then((productsRes) => {
-                    setProducts(productsRes.content);
-                    setTotalItems(productsRes.length);
-                })
-                .catch((error) => console.error(error))
-                .finally(() => setLoading(false));
-        } else {
-            agent.Store.list(page, size, undefined, undefined, url)
-                .then((productsRes) => {
-                    setProducts(productsRes.content);
-                    setTotalItems(productsRes.totalElements);
-                })
-                .catch((error) => console.error(error))
-                .finally(() => setLoading(false));
-        }
-    }
-    //Trigger loadProducts when ever selectedBrandId or selectedTypeId changes
     useEffect(() => {
         loadProducts(selectedSort);
-    }, [selectedBrandId, selectedTypeId]);
+    }, [currentPage, selectedBrandId, selectedTypeId]);
+
+    const loadInitialData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const [productsRes, brandsRes, typesRes] = await Promise.all([
+                agent.Store.list(currentPage, pageSize),
+                agent.Store.brands(),
+                agent.Store.types()
+            ]);
+
+            console.log('Products loaded:', productsRes);
+            console.log('Brands loaded:', brandsRes);
+            console.log('Types loaded:', typesRes);
+
+            setProducts(productsRes.content || []);
+            setTotalItems(productsRes.totalElements || 0);
+            setBrands(brandsRes || []);
+            setTypes(typesRes || []);
+        } catch (error: any) {
+            console.error('Error loading initial data:', error);
+            setError(error?.message || 'Failed to load data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadProducts = async (selectedSort: string, searchKeyword = '') => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const page = currentPage - 1;
+            const size = pageSize;
+            const brandId = selectedBrandId !== 0 ? selectedBrandId : undefined;
+            const typeId = selectedTypeId !== 0 ? selectedTypeId : undefined;
+            const sort = "name";
+            const order = selectedSort === "desc" ? "desc" : "asc";
+
+            let url = `products?page=${page}&size=${size}&sort=${sort}&order=${order}`;
+
+            if (brandId !== undefined) {
+                url += `&brandId=${brandId}`;
+            }
+            if (typeId !== undefined) {
+                url += `&typeId=${typeId}`;
+            }
+            if (searchKeyword) {
+                url += `&keyword=${encodeURIComponent(searchKeyword)}`;
+            }
+
+            console.log('Loading products with URL:', url);
+
+            const productsRes = await agent.Store.list(page + 1, size, brandId, typeId, url);
+
+            console.log('Products response:', productsRes);
+
+            setProducts(productsRes.content || []);
+            setTotalItems(productsRes.totalElements || 0);
+        } catch (error: any) {
+            console.error('Error loading products:', error);
+            setError(error?.message || 'Failed to load products');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSortChange = (event: any) => {
         const selectedSort = event.target.value;
@@ -111,27 +124,66 @@ export default function Catalog() {
     const handleBrandChange = (event: any) => {
         const selectedBrand = event.target.value;
         const brand = brands.find((b) => b.name === selectedBrand);
-        setSelectedBrand(selectedBrand)
+        setSelectedBrand(selectedBrand);
         if (brand) {
             setSelectedBrandId(brand.id);
-            loadProducts(selectedSort);
+        } else {
+            setSelectedBrandId(0);
         }
     };
 
     const handleTypeChange = (event: any) => {
         const selectedType = event.target.value;
         const type = types.find((t) => t.name === selectedType);
-        setSelectedType(selectedType)
+        setSelectedType(selectedType);
         if (type) {
             setSelectedTypeId(type.id);
-            loadProducts(selectedSort);
+        } else {
+            setSelectedTypeId(0);
         }
     };
-    const handlePageChange = (event, page: any) =>{
+
+    const handlePageChange = (_event: any, page: number) => {
         setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleSearch = () => {
+        setCurrentPage(1);
+        loadProducts(selectedSort, searchTerm);
+    };
+
+    if (loading) return <Spinner message='Loading Products...' />;
+
+    if (error) {
+        return (
+            <Box textAlign="center" mt={4}>
+                <Typography variant="h5" color="error">
+                    Error: {error}
+                </Typography>
+                <Typography variant="body1" mt={2}>
+                    Please make sure all services are running:
+                </Typography>
+                <Typography variant="body2">
+                    - Eureka Server (port 8761)<br />
+                    - Product Service (port 8082)<br />
+                    - API Gateway (port 8085)
+                </Typography>
+            </Box>
+        );
     }
-    if(!products) return <h3>Unable to load Products</h3>
-    if(loading) return <Spinner message='Loading Products...'/>
+
+    if (!products || products.length === 0) {
+        return (
+            <Box textAlign="center" mt={4}>
+                <Typography variant="h5">No products found</Typography>
+                <Typography variant="body1" mt={2}>
+                    Please add some products to the database
+                </Typography>
+            </Box>
+        );
+    }
+
     return (
         <Grid container spacing={4}>
             <Grid item xs={12}>
@@ -140,26 +192,34 @@ export default function Catalog() {
                         Displaying {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} items
                     </Typography>
                 </Box>
-                <Box mt={4} display="flex" justifyContent="center">
-                    <Pagination count={Math.ceil(totalItems / pageSize)} color="primary" onChange={handlePageChange} page={currentPage} />
-                </Box>
+                {totalItems > pageSize && (
+                    <Box mt={4} display="flex" justifyContent="center">
+                        <Pagination
+                            count={Math.ceil(totalItems / pageSize)}
+                            color="primary"
+                            onChange={handlePageChange}
+                            page={currentPage}
+                        />
+                    </Box>
+                )}
             </Grid>
+
             <Grid item xs={3}>
-                <Paper sx={{mb:2}}>
+                <Paper sx={{mb:2, p: 2}}>
                     <TextField
                         label="Search products"
                         variant="outlined"
                         fullWidth
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => {
+                        onKeyPress={(e) => {
                             if (e.key === 'Enter') {
-                                // Trigger search action
-                                loadProducts(selectedSort, searchTerm); // Pass the search term to loadProducts
+                                handleSearch();
                             }
                         }}
                     />
                 </Paper>
+
                 <Paper sx={{ mb: 2, p: 2 }}>
                     <FormControl>
                         <FormLabel id="sort-by-name-label">Sort by Name</FormLabel>
@@ -180,6 +240,7 @@ export default function Catalog() {
                         </RadioGroup>
                     </FormControl>
                 </Paper>
+
                 <Paper sx={{ mb: 2, p: 2 }}>
                     <FormControl>
                         <FormLabel id="brands-label">Brands</FormLabel>
@@ -200,6 +261,7 @@ export default function Catalog() {
                         </RadioGroup>
                     </FormControl>
                 </Paper>
+
                 <Paper sx={{ mb: 2, p: 2 }}>
                     <FormControl>
                         <FormLabel id="types-label">Types</FormLabel>
@@ -221,14 +283,23 @@ export default function Catalog() {
                     </FormControl>
                 </Paper>
             </Grid>
+
             <Grid item xs={9}>
                 <ProductList products={products}/>
             </Grid>
-            <Grid item xs={12}>
-                <Box mt={4} display="flex" justifyContent="center">
-                    <Pagination count={Math.ceil(totalItems / pageSize)} color="primary" onChange={handlePageChange} page={currentPage} />
-                </Box>
-            </Grid>
+
+            {totalItems > pageSize && (
+                <Grid item xs={12}>
+                    <Box mt={4} display="flex" justifyContent="center">
+                        <Pagination
+                            count={Math.ceil(totalItems / pageSize)}
+                            color="primary"
+                            onChange={handlePageChange}
+                            page={currentPage}
+                        />
+                    </Box>
+                </Grid>
+            )}
         </Grid>
-    )
+    );
 }

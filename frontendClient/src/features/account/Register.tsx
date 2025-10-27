@@ -1,22 +1,27 @@
 import {Avatar, Box, Button, Container, CssBaseline, Grid, Link, TextField, Typography} from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import {ChangeEvent, FormEvent, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {FieldValues, useForm} from "react-hook-form";
+import {toast} from "react-toastify";
+import agent from "../../app/api/agent.ts";
+import {LoadingButton} from "@mui/lab";
 
 export default function Register() {
-    const [formData, setFormData] = useState({
-        username: "",
-        password: "",
-        email: ""
+    const navigate = useNavigate();
+    const {register, handleSubmit, formState:{isSubmitting, errors, isValid}} = useForm({
+        mode: "onTouched"
     });
 
-    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const {name, value} = e.target;
-        setFormData({...formData, [name]: value});
-    }
-
-    const handleSubmit = (e: FormEvent) => {
-        e.preventDefault();
-        console.log(formData);
+    async function submitForm(data: FieldValues) {
+        try {
+            await agent.Account.register(data);
+            toast.success('Registration successful! Please login.');
+            navigate('/login');
+        } catch (error: any) {
+            console.error('Registration error:', error);
+            const errorMessage = error?.response?.data || 'Registration failed';
+            toast.error(errorMessage);
+        }
     }
 
     return (
@@ -36,18 +41,20 @@ export default function Register() {
                 <Typography component="h1" variant="h5">
                     Register
                 </Typography>
-                <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+                <Box component="form" onSubmit={handleSubmit(submitForm)} noValidate sx={{ mt: 1 }}>
                     <TextField
                         margin="normal"
                         required
                         fullWidth
                         id="username"
                         label="Username"
-                        name="username"
-                        autoComplete="username"
                         autoFocus
-                        value={formData.username}
-                        onChange={handleChange}
+                        {...register('username', {
+                            required: "Username is required",
+                            minLength: {value: 3, message: "Username must be at least 3 characters"}
+                        })}
+                        error={!!errors.username}
+                        helperText={errors?.username?.message as string}
                     />
                     <TextField
                         margin="normal"
@@ -55,31 +62,58 @@ export default function Register() {
                         fullWidth
                         id="email"
                         label="Email Address"
-                        name="email"
-                        autoComplete="email"
-                        value={formData.email}
-                        onChange={handleChange}
+                        {...register('email', {
+                            required: "Email is required",
+                            pattern: {
+                                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                                message: "Invalid email address"
+                            }
+                        })}
+                        error={!!errors.email}
+                        helperText={errors?.email?.message as string}
                     />
                     <TextField
                         margin="normal"
                         required
                         fullWidth
-                        name="password"
+                        label="First Name"
+                        {...register('firstName', {required: "First name is required"})}
+                        error={!!errors.firstName}
+                        helperText={errors?.firstName?.message as string}
+                    />
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        label="Last Name"
+                        {...register('lastName', {required: "Last name is required"})}
+                        error={!!errors.lastName}
+                        helperText={errors?.lastName?.message as string}
+                    />
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
                         label="Password"
                         type="password"
                         id="password"
-                        autoComplete="new-password"
-                        value={formData.password}
-                        onChange={handleChange}
+                        {...register('password', {
+                            required: "Password is required",
+                            minLength: {value: 6, message: "Password must be at least 6 characters"}
+                        })}
+                        error={!!errors.password}
+                        helperText={errors?.password?.message as string}
                     />
-                    <Button
+                    <LoadingButton
+                        loading={isSubmitting}
+                        disabled={!isValid}
                         type="submit"
                         fullWidth
                         variant="contained"
                         sx={{ mt: 3, mb: 2 }}
                     >
                         Register
-                    </Button>
+                    </LoadingButton>
                     <Grid container justifyContent="flex-end">
                         <Grid item>
                             <Link href="/login" variant="body2">

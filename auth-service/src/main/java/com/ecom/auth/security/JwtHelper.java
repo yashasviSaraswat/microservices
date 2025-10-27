@@ -53,13 +53,13 @@ public class JwtHelper {
 
     private String generateToken(Map<String, Object> claims, String username) {
         Key hmackey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8),
-                SignatureAlgorithm.HS512.getJcaName());
+                SignatureAlgorithm.HS256.getJcaName());  // ← FIXED
         return Jwts.builder()
                 .claims(claims)
                 .subject(username)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationTime))
-                .signWith(hmackey, SignatureAlgorithm.HS512)
+                .signWith(hmackey, SignatureAlgorithm.HS256)  // ← FIXED
                 .compact();
     }
 

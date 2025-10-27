@@ -10,14 +10,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/products")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "http://127.0.0.1:3000"}, allowCredentials = "true")
 public class ProductController {
 
     private final ProductService productService;
@@ -32,7 +31,12 @@ public class ProductController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponseDto> getProductById(@PathVariable Integer id) {
-        return ResponseEntity.ok(productService.getProductById(id));
+        try {
+            ProductResponseDto product = productService.getProductById(id);
+            return ResponseEntity.ok(product);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping
@@ -45,19 +49,37 @@ public class ProductController {
             @RequestParam(defaultValue = "name") String sort,
             @RequestParam(defaultValue = "asc") String order) {
 
-        Sort.Direction direction = order.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort));
+        try {
+            Sort.Direction direction = order.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+            Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort));
 
-        return ResponseEntity.ok(productService.getAllProducts(pageable, brandId, typeId, keyword));
+            Page<ProductResponseDto> products = productService.getAllProducts(pageable, brandId, typeId, keyword);
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @GetMapping("/brands")
     public ResponseEntity<List<BrandResponseDto>> getBrands() {
-        return ResponseEntity.ok(brandService.getAllBrands());
+        try {
+            List<BrandResponseDto> brands = brandService.getAllBrands();
+            return ResponseEntity.ok(brands);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @GetMapping("/types")
     public ResponseEntity<List<TypeResponseDto>> getTypes() {
-        return ResponseEntity.ok(typeService.getAllTypes());
+        try {
+            List<TypeResponseDto> types = typeService.getAllTypes();
+            return ResponseEntity.ok(types);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

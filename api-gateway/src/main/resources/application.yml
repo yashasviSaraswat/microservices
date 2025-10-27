@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8085
 
 spring:
   application:
@@ -11,6 +11,7 @@ spring:
           enabled: true
           lower-case-service-id: true
       routes:
+        # Auth Service - No authentication needed
         - id: auth-service
           uri: lb://AUTH-SERVICE
           predicates:
@@ -18,22 +19,23 @@ spring:
           filters:
             - RewritePath=/api/auth/(?<segment>.*), /auth/$\{segment}
 
+        # Product Service - No authentication needed (public access)
         - id: product-service
           uri: lb://PRODUCT-SERVICE
           predicates:
             - Path=/api/products/**
           filters:
-            - AuthenticationFilter
             - RewritePath=/api/products/(?<segment>.*), /products/$\{segment}
 
+        # Basket Service - No authentication (using localStorage)
         - id: basket-service
           uri: lb://BASKET-SERVICE
           predicates:
             - Path=/api/basket/**
           filters:
-            - AuthenticationFilter
             - RewritePath=/api/basket/(?<segment>.*), /basket/$\{segment}
 
+        # Order Service - Authentication required
         - id: order-service
           uri: lb://ORDER-SERVICE
           predicates:
@@ -42,20 +44,38 @@ spring:
             - AuthenticationFilter
             - RewritePath=/api/orders/(?<segment>.*), /orders/$\{segment}
 
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
       globalcors:
         cors-configurations:
           '[/**]':
-            allowed-origins: "http://localhost:3000"
-            allowed-methods: GET,POST,PUT,DELETE,OPTIONS
-            allowed-headers: "*"
-            allow-credentials: true
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://127.0.0.1:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
   instance:
     prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
 
 jwt:
   secret: q12w3e4r5t6y7u8i9o0azsxdcfvgbhnjmkaqwsedrftgyhujik1234567890poiuytrewq123456789oiuytrewq
@@ -68,3 +88,8 @@ management:
   endpoint:
     health:
       show-details: always
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty.http.client: DEBUG
