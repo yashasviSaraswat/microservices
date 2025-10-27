@@ -216,14 +216,5 @@ mysql -u ecomuser -p product_db < sample-data.sql
 - Keep only Gateway CORS configuration
 - Restart all services
 
-## 📄 License
-
-This project is for educational purposes.
-
-## 👨‍💻 Author
-
-**MibCommerce Team**
-
----
 
 ⭐ Star this repo if you find it helpful!
