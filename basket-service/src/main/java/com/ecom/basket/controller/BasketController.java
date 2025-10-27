@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/basket")
-@CrossOrigin(origins = "http://localhost:3000")
+//@CrossOrigin(origins = "http://localhost:3000")
 public class BasketController {
 
     private final BasketService basketService;

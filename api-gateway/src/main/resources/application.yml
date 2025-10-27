@@ -17,7 +17,7 @@ spring:
           predicates:
             - Path=/api/auth/**
           filters:
-            - RewritePath=/api/auth/(?<segment>.*), /auth/$\{segment}
+            - StripPrefix=1
 
         # Product Service - No authentication needed (public access)
         - id: product-service
@@ -25,7 +25,7 @@ spring:
           predicates:
             - Path=/api/products/**
           filters:
-            - RewritePath=/api/products/(?<segment>.*), /products/$\{segment}
+            - StripPrefix=1
 
         # Basket Service - No authentication (using localStorage)
         - id: basket-service
@@ -33,7 +33,7 @@ spring:
           predicates:
             - Path=/api/basket/**
           filters:
-            - RewritePath=/api/basket/(?<segment>.*), /basket/$\{segment}
+            - StripPrefix=1
 
         # Order Service - Authentication required
         - id: order-service
@@ -42,7 +42,7 @@ spring:
             - Path=/api/orders/**
           filters:
             - AuthenticationFilter
-            - RewritePath=/api/orders/(?<segment>.*), /orders/$\{segment}
+            - StripPrefix=1
 
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
